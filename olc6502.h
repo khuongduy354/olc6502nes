@@ -2,6 +2,7 @@
 #include <map>
 #include <string>
 #include <vector>
+
 // Emulation Behaviour Logging ======================================
 // Uncomment this to create a logfile entry for each clock tick of
 // the CPU. Beware: this slows down emulation considerably and
@@ -23,8 +24,16 @@ public:
   olc6502();
   ~olc6502();
 
+  struct INSTRUCTION {
+    std::string instr_name;
+    uint8_t (olc6502::*operate)(void) = nullptr;
+    uint8_t (olc6502::*addrmode)(void) = nullptr;
+    uint8_t clock_cycles_required = 0;
+  };
+
+  std::vector<INSTRUCTION> lookup;
+
 public:
-  // CPU Core registers, exposed as public here for ease of access from external
   // examinors. This is all the 6502 has.
   uint8_t a = 0x00;      // Accumulator Register
   uint8_t x = 0x00;      // X Register
@@ -35,19 +44,16 @@ public:
 
   // External event functions. In hardware these represent pins that are
   // asserted to produce a change in state.
-  /* void reset(); // Reset Interrupt - Forces CPU into known state */
-  /* void */
-  /* irq(); // Interrupt Request - Executes an instruction at a specific
-   * location */
-  /* void */
-  /* nmi(); // Non-Maskable Interrupt Request - As above, but cannot be disabled
-   */
+  void reset(); // Reset Interrupt - Forces CPU into known state
+  void irq();   // Interrupt Request - Executes an instruction at a specific
+  void
+  nmi(); // Non-Maskable Interrupt Request - As above, but cannot be ignored
   void clock(); // Perform one clock cycle's worth of update
 
   // Indicates the current instruction has completed by returning true. This is
   // a utility function to enable "step-by-step" execution, without manually
   // clocking every cycle
-  /* bool complete(); */
+  bool complete();
 
   // Link this CPU to a communications bus
   void ConnectBus(Bus *n) { bus = n; }
@@ -72,18 +78,18 @@ public:
   };
 
 private:
-  uint8_t get_flag(FLAGBITS flag_num);
+  bool get_flag(FLAGBITS flag_num);
   void set_flag(FLAGBITS flag_num, bool is_set);
 
-  // Assisstive variables to facilitate emulation
   uint8_t fetch();
 
   /* uint16_t temp = 0x0000;     // A convenience variable used everywhere
    */
-  uint8_t fetched = 0x00;   // value before sending to ALU
-  uint8_t opcode = 0x00;    // the instruction byte
-  uint16_t addr = 0x0000;   // default RAM address
-  uint16_t addr_rel = 0x00; // addr but branched
+  // Assisstive variables to facilitate emulation
+  uint8_t fetched = 0x00;  // value before sending to ALU
+  uint8_t opcode = 0x00;   // the instruction byte
+  uint16_t addr = 0x0000;  // default RAM address
+  uint8_t addr_rel = 0x00; // addr but branched
   uint8_t cycles = 0; // Counts how many cycles the instruction has remaining
                       /* */
   /* uint32_t current_clock_count = */
@@ -93,15 +99,6 @@ private:
   Bus *bus = nullptr;
   uint8_t read(uint16_t a);
   void write(uint16_t a, uint8_t d);
-
-  struct INSTRUCTION {
-    std::string instr_name;
-    uint8_t (*address_mode_prep)(void) = nullptr;
-    uint8_t (*operate)(void) = nullptr;
-    uint8_t clock_cycles_required = 0;
-  };
-
-  std::vector<INSTRUCTION> lookup;
 
 private:
   // This is run before op execution, to load the operand into the ALU
