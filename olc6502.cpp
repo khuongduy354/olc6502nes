@@ -1,6 +1,9 @@
 #include "olc6502.h"
 #include "bus.h"
+#include <iostream>
+using namespace std;
 // Constructor
+olc6502::~olc6502() {}
 olc6502::olc6502() {
   // Assembles the translation table. It's big, it's ugly, but it yields a
   // convenient way to emulate the 6502. I'm certain there are some "code-golf"
@@ -149,10 +152,7 @@ olc6502::olc6502() {
 }
 
 void olc6502::write(uint16_t addr, uint8_t data) { bus->write(addr, data); }
-uint8_t olc6502::read(uint16_t addr) {
-  bus->read(addr);
-  return 0;
-}
+uint8_t olc6502::read(uint16_t addr) { bus->read(addr); }
 bool olc6502::complete() { return cycles == 0; }
 void olc6502::set_flag(FLAGBITS flag, bool is_set) {
   if (is_set) {
@@ -336,6 +336,231 @@ uint8_t olc6502::PLA() {
   return 0;
 }
 
+uint8_t olc6502::ADC() {}
+
+// Instruction: Subtraction with Borrow In
+// Function:    A = A - M - (1 - C)
+// Flags Out:   C, V, N, Z
+//
+// Explanation:
+// Given the explanation for ADC above, we can reorganise our data
+// to use the same computation for addition, for subtraction by multiplying
+// the data by -1, i.e. make it negative
+//
+// A = A - M - (1 - C)  ->  A = A + -1 * (M - (1 - C))  ->  A = A + (-M + 1 + C)
+//
+// To make a signed positive number negative, we can invert the bits and add 1
+// (OK, I lied, a little bit of 1 and 2s complement :P)
+//
+//  5 = 00000101
+// -5 = 11111010 + 00000001 = 11111011 (or 251 in our 0 to 255 range)
+//
+// The range is actually unimportant, because if I take the value 15, and add
+// 251 to it, given we wrap around at 256, the result is 10, so it has
+// effectively subtracted 5, which was the original intention. (15 + 251) % 256
+// = 10
+//
+// Note that the equation above used (1-C), but this got converted to + 1 + C.
+// This means we already have the +1, so all we need to do is invert the bits
+// of M, the data(!) therfore we can simply add, exactly the same way we did
+// before.
+
+uint8_t olc6502::SBC() {}
+
+// Instruction: Arithmetic Shift Left
+// Function:    A = C <- (A << 1) <- 0
+// Flags Out:   N, Z, C
+uint8_t olc6502::ASL() {}
+
+// Instruction: Branch if Carry Clear
+// Function:    if(C == 0) pc = address
+uint8_t olc6502::BCC() {}
+
+// Instruction: Branch if Equal
+// Function:    if(Z == 1) pc = address
+uint8_t olc6502::BEQ() {}
+
+uint8_t olc6502::BIT() {}
+
+// Instruction: Branch if Negative
+// Function:    if(N == 1) pc = address
+uint8_t olc6502::BMI() {}
+
+// Instruction: Branch if Not Equal
+// Function:    if(Z == 0) pc = address
+uint8_t olc6502::BNE() {}
+
+// Instruction: Branch if Positive
+// Function:    if(N == 0) pc = address
+uint8_t olc6502::BPL() {}
+
+// Instruction: Break
+// Function:    Program Sourced Interrupt
+uint8_t olc6502::BRK() {}
+
+// Instruction: Branch if Overflow Clear
+// Function:    if(V == 0) pc = address
+uint8_t olc6502::BVC() {}
+
+// Instruction: Branch if Overflow Set
+// Function:    if(V == 1) pc = address
+uint8_t olc6502::BVS() {}
+
+// Instruction: Clear Decimal Flag
+// Function:    D = 0
+uint8_t olc6502::CLD() {}
+
+// Instruction: Disable Interrupts / Clear Interrupt Flag
+// Function:    I = 0
+uint8_t olc6502::CLI() {}
+
+// Instruction: Clear Overflow Flag
+// Function:    V = 0
+uint8_t olc6502::CLV() {}
+
+// Instruction: Compare Accumulator
+// Function:    C <- A >= M      Z <- (A - M) == 0
+// Flags Out:   N, C, Z
+uint8_t olc6502::CMP() {}
+
+// Instruction: Compare X Register
+// Function:    C <- X >= M      Z <- (X - M) == 0
+// Flags Out:   N, C, Z
+uint8_t olc6502::CPX() {}
+
+// Instruction: Compare Y Register
+// Function:    C <- Y >= M      Z <- (Y - M) == 0
+// Flags Out:   N, C, Z
+uint8_t olc6502::CPY() {}
+
+// Instruction: Decrement Value at Memory Location
+// Function:    M = M - 1
+// Flags Out:   N, Z
+uint8_t olc6502::DEC() {}
+
+// Instruction: Decrement X Register
+// Function:    X = X - 1
+// Flags Out:   N, Z
+uint8_t olc6502::DEX() {}
+
+// Instruction: Decrement Y Register
+// Function:    Y = Y - 1
+// Flags Out:   N, Z
+uint8_t olc6502::DEY() {}
+
+// Instruction: Bitwise Logic XOR
+// Function:    A = A xor M
+// Flags Out:   N, Z
+uint8_t olc6502::EOR() {}
+
+// Instruction: Increment Value at Memory Location
+// Function:    M = M + 1
+// Flags Out:   N, Z
+uint8_t olc6502::INC() {}
+
+// Instruction: Increment X Register
+// Function:    X = X + 1
+// Flags Out:   N, Z
+uint8_t olc6502::INX() {}
+
+// Instruction: Increment Y Register
+// Function:    Y = Y + 1
+// Flags Out:   N, Z
+uint8_t olc6502::INY() {}
+
+// Instruction: Jump To Location
+// Function:    pc = address
+uint8_t olc6502::JMP() {}
+
+// Instruction: Jump To Sub-Routine
+// Function:    Push current pc to stack, pc = address
+uint8_t olc6502::JSR() {}
+
+uint8_t olc6502::LDX() {}
+
+// Instruction: Load The Y Register
+// Function:    Y = M
+// Flags Out:   N, Z
+uint8_t olc6502::LDY() {}
+
+uint8_t olc6502::LSR() {}
+
+uint8_t olc6502::NOP() {}
+
+// Instruction: Bitwise Logic OR
+// Function:    A = A | M
+// Flags Out:   N, Z
+uint8_t olc6502::ORA() {}
+
+uint8_t olc6502::PHP() {}
+
+uint8_t olc6502::PLP() {}
+
+uint8_t olc6502::ROL() {}
+
+uint8_t olc6502::ROR() {}
+
+uint8_t olc6502::RTI() {}
+
+uint8_t olc6502::RTS() {}
+
+// Instruction: Set Carry Flag
+// Function:    C = 1
+uint8_t olc6502::SEC() {}
+
+// Instruction: Set Decimal Flag
+// Function:    D = 1
+uint8_t olc6502::SED() {}
+
+// Instruction: Set Interrupt Flag / Enable Interrupts
+// Function:    I = 1
+uint8_t olc6502::SEI() {}
+
+// Instruction: Store Accumulator at Address
+// Function:    M = A
+uint8_t olc6502::STA() {}
+
+// Instruction: Store X Register at Address
+// Function:    M = X
+uint8_t olc6502::STX() {}
+
+// Instruction: Store Y Register at Address
+// Function:    M = Y
+uint8_t olc6502::STY() {}
+
+// Instruction: Transfer Accumulator to X Register
+// Function:    X = A
+// Flags Out:   N, Z
+uint8_t olc6502::TAX() {}
+
+// Instruction: Transfer Accumulator to Y Register
+// Function:    Y = A
+// Flags Out:   N, Z
+uint8_t olc6502::TAY() {}
+
+// Instruction: Transfer Stack Pointer to X Register
+// Function:    X = stack pointer
+// Flags Out:   N, Z
+uint8_t olc6502::TSX() {}
+
+// Instruction: Transfer X Register to Accumulator
+// Function:    A = X
+// Flags Out:   N, Z
+uint8_t olc6502::TXA() {}
+
+// Instruction: Transfer X Register to Stack Pointer
+// Function:    stack pointer = X
+uint8_t olc6502::TXS() {}
+
+// Instruction: Transfer Y Register to Accumulator
+// Function:    A = Y
+// Flags Out:   N, Z
+uint8_t olc6502::TYA() {}
+
+// This function captures illegal opcodes
+uint8_t olc6502::XXX() {}
+
+// ============================== END ADDRESS ===========================>
 void olc6502::reset() {
   // Get address to set program counter to
   addr = 0xFFFC;

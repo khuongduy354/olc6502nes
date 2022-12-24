@@ -1,12 +1,11 @@
 # Todo 
-- why use supportive variable instead of plain registers. 
-for example: accumulator -> fetched -> ALU. 
-  why not:    accumulator -> ALU.
+
+# Notes  
 - cpu and bus 
   A bus is used to read or write data.when present in code,
-  should i do cpu.bus.write() or bus.cpu.write();  
+  should i do cpu.bus.write() or bus.cpu.write();   
+  -> Answer: both. the demo1 use bus to access cpu, the cpu itself has read operation acccess bus. 
 
-# Notes 
 ADC: supports both signed and unsigned 
 for example: 1000100 can be understood by both 132 and -124 
 check formula for this addition, XOR is to check if 2 bits differnt 
