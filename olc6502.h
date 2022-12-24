@@ -86,10 +86,10 @@ private:
   /* uint16_t temp = 0x0000;     // A convenience variable used everywhere
    */
   // Assisstive variables to facilitate emulation
-  uint8_t fetched = 0x00;  // value before sending to ALU
-  uint8_t opcode = 0x00;   // the instruction byte
-  uint16_t addr = 0x0000;  // default RAM address
-  uint8_t addr_rel = 0x00; // addr but branched
+  uint8_t fetched = 0x00;   // value before sending to ALU
+  uint8_t opcode = 0x00;    // the instruction byte
+  uint16_t addr = 0x0000;   // default RAM address
+  uint16_t addr_rel = 0x00; // addr but branched
   uint8_t cycles = 0; // Counts how many cycles the instruction has remaining
                       /* */
   /* uint32_t current_clock_count = */

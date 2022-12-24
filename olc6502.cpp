@@ -177,7 +177,9 @@ void olc6502::clock() {
 };
 uint8_t olc6502::fetch() {
   // TODO IMP mode
-  fetched = read(pc++);
+  /*   	if (!(lookup[opcode].addrmode == &olc6502::IMP)) */
+  /* fetched = read(addr_abs); */
+  fetched = read(addr);
   return fetched;
 }
 // ADDRESS MODES
@@ -199,6 +201,7 @@ uint8_t olc6502::IMP() {
 uint8_t olc6502::LDA() {
   fetch();
   a = fetched;
+  set_flag(Z, a == 0);
   return 0;
 };
 
@@ -224,8 +227,8 @@ uint8_t olc6502::ZPY() {
 
 // return 16 bit address
 uint8_t olc6502::ABS() {
-  uint8_t high = read(pc++);
   uint8_t low = read(pc++);
+  uint8_t high = read(pc++);
   addr = (high << 8) | low;
   return 0;
 }
@@ -257,14 +260,21 @@ uint8_t olc6502::ABY() {
 
 // relative address
 uint8_t olc6502::REL() {
-  uint8_t next_byte = read(pc++);
-  // next 8 bits bytes has 256 options, range from -128 to 127
-  // first bit from left in that is sign flag
-  if (next_byte & 0x80) { // if sign bit is 1 mean plus
-    addr_rel = pc + next_byte & 0x7F;
-  } else {
-    addr_rel = pc - next_byte & 0x7F;
-  }
+  /* addr_rel = read(pc); */
+  /* pc++; */
+  /* // next 8 bits bytes has 256 options, range from -128 to 127 */
+  /* // first bit from left in that is sign flag */
+  /* if (addr_rel & 0x80) { // if sign bit is 1 mean negative */
+  /*   addr_rel = pc - (addr_rel & 0x7F); */
+  /* } else { */
+  /*   addr_rel = pc + (addr_rel & 0x7F); */
+  /* } */
+  /* return 0; */
+  addr_rel = read(pc);
+  pc++;
+  if (addr_rel & 0x80)
+    addr_rel |= 0xFF00;
+  cout << "current add_rel: " << hex << addr_rel << endl;
   return 0;
 }
 
@@ -336,7 +346,37 @@ uint8_t olc6502::PLA() {
   return 0;
 }
 
-uint8_t olc6502::ADC() {}
+//       Positive Number + Positive Number = Negative Result -> Overflow
+//       Negative Number + Negative Number = Positive Result -> Overflow
+//       Positive Number + Negative Number = Either Result -> Cannot Overflow
+//       Positive Number + Positive Number = Positive Result -> OK! No Overflow
+//       Negative Number + Negative Number = Negative Result -> OK! NO Overflow
+uint8_t olc6502::ADC() {
+  fetch();
+
+  // Add is performed in 16-bit domain for emulation to capture any
+  // carry bit, which will exist in bit 8 of the 16-bit word
+  uint16_t temp = (uint16_t)a + (uint16_t)fetched + (uint16_t)get_flag(C);
+
+  // The carry flag out exists in the high byte bit 0
+  set_flag(C, temp > 255);
+
+  // zero flag
+  set_flag(Z, (temp & 0x00FF) == 0);
+
+  // The signed Overflow flag is set based on all that up there! :D
+  set_flag(
+      V, (~((uint16_t)a ^ (uint16_t)fetched) & ((uint16_t)a ^ (uint16_t)temp)) &
+             0x0080);
+
+  // rightmost bit is negative
+  set_flag(N, temp & 0x80);
+
+  // Load the result into the accumulator (it's 8-bit dont forget!)
+  a = temp & 0x00FF;
+
+  return 1;
+}
 
 // Instruction: Subtraction with Borrow In
 // Function:    A = A - M - (1 - C)
@@ -388,7 +428,23 @@ uint8_t olc6502::BMI() {}
 
 // Instruction: Branch if Not Equal
 // Function:    if(Z == 0) pc = address
-uint8_t olc6502::BNE() {}
+uint8_t olc6502::BNE() {
+  // if not zero
+  if (get_flag(Z) == 0) {
+    cycles++;
+    cout << "pc before: " << hex << pc << endl;
+    cout << "addr_rel before: " << hex << addr_rel << endl;
+    addr = pc + addr_rel;
+
+    // if on different page, 1 more cycle
+    if ((addr & 0xFF00) != (pc & 0xFF00))
+      cycles++;
+
+    pc = addr;
+    cout << "pc: " << hex << pc << endl;
+  }
+  return 0;
+}
 
 // Instruction: Branch if Positive
 // Function:    if(N == 0) pc = address
@@ -446,7 +502,12 @@ uint8_t olc6502::DEX() {}
 // Instruction: Decrement Y Register
 // Function:    Y = Y - 1
 // Flags Out:   N, Z
-uint8_t olc6502::DEY() {}
+uint8_t olc6502::DEY() {
+  y -= 1;
+  set_flag(Z, y == 0x00);
+  set_flag(N, y & 0x80);
+  return 0;
+}
 
 // Instruction: Bitwise Logic XOR
 // Function:    A = A xor M
@@ -476,17 +537,40 @@ uint8_t olc6502::JMP() {}
 // Function:    Push current pc to stack, pc = address
 uint8_t olc6502::JSR() {}
 
-uint8_t olc6502::LDX() {}
+uint8_t olc6502::LDX() {
+  x = fetch();
+  set_flag(Z, x == 0x00);
+  set_flag(N, x & 0x80);
+  return 1;
+}
 
 // Instruction: Load The Y Register
 // Function:    Y = M
 // Flags Out:   N, Z
-uint8_t olc6502::LDY() {}
+uint8_t olc6502::LDY() {
+  y = fetch();
+  set_flag(Z, y == 0x00);
+  set_flag(N, y & 0x80);
+  return 1;
+}
 
 uint8_t olc6502::LSR() {}
 
-uint8_t olc6502::NOP() {}
-
+uint8_t olc6502::NOP() {
+  // some illegal opcodes
+  // https://wiki.nesdev.com/w/index.php/CPU_unofficial_opcodes
+  switch (opcode) {
+  case 0x1C:
+  case 0x3C:
+  case 0x5C:
+  case 0x7C:
+  case 0xDC:
+  case 0xFC:
+    return 1;
+    break;
+  }
+  return 0;
+}
 // Instruction: Bitwise Logic OR
 // Function:    A = A | M
 // Flags Out:   N, Z
@@ -518,11 +602,17 @@ uint8_t olc6502::SEI() {}
 
 // Instruction: Store Accumulator at Address
 // Function:    M = A
-uint8_t olc6502::STA() {}
+uint8_t olc6502::STA() {
+  write(addr, a);
+  return 0;
+}
 
 // Instruction: Store X Register at Address
 // Function:    M = X
-uint8_t olc6502::STX() {}
+uint8_t olc6502::STX() {
+  write(addr, x);
+  return 0;
+}
 
 // Instruction: Store Y Register at Address
 // Function:    M = Y
